@@ -1,13 +1,14 @@
 #!/bin/bash
 list=$1
-totalSlots=5
-slots=1
+base=$2
+totalSlots=20
+slots=4
 IFS=$'\n' read -d '' -r -a nodes_ar < nodes.config
 
 findRunningJobs() {
 	node=$1
-	NumOfStart=$(ls nodes/$node/*.start 2>/dev/null | wc -l)
-	NumOfEnd=$(ls nodes/$node/*.end 2>/dev/null | wc -l)
+	NumOfStart=$(ls $base/nodes/$node/*.start 2>/dev/null | wc -l)
+	NumOfEnd=$(ls $base/nodes/$node/*.end 2>/dev/null | wc -l)
 	echo $((NumOfStart-NumOfEnd))
 }
 
@@ -16,7 +17,7 @@ findNodes() {
 	#echo ">"${nodes_ar[0]}
 
 	#echo "request new node------"
-	lastAssignNode=`cat lastNode`
+	lastAssignNode=`cat $base/lastNode`
 	getNode=
 	i=0
 	if [ $lastAssignNode -ne 999 ]; then
@@ -34,7 +35,7 @@ findNodes() {
 		if [ $RunningJobs -lt $slots ]; then
 			getNode=${nodes_ar[$i]}
 			lastAssignNode=$((i+1))
-			echo $lastAssignNode > lastNode
+			echo $lastAssignNode > $base/lastNode
 			#echo "getNode: ${getNode}, index: $i, last: ${lastAssignNode}"
 			echo $getNode
 			return
@@ -55,12 +56,13 @@ while read contig; do
 		while [ $totalRunning -ge $totalSlots ]; do
 			echo "> r: $totalRunning max: $totalSlots"
 			totalRunning=$(findRunningJobs "**")
-			sleep 10
+			sleep 5
 		done
 	fi
 	assignNode=$(findNodes)
-	echo "Submit .."$contig" in $assignNode with base $PWD / $totalRunning"
-	./run.sh $contig $assignNode $PWD &
-	sleep 1
+	echo "Submit .."$contig" in $assignNode with base $base / $totalRunning"
+	$base/entry.sh $base $contig $assignNode
+	#ssh ${assignNode} -f "$base/freebayes.sh $contig /gfs/repo2_11/pool-bam/NGS20150311F.hs38DH.dedup.postalt.sorted.bam $base $assignNode &"
+	#sleep 1
 	totalRunning=$(findRunningJobs "**")
 done<$list
